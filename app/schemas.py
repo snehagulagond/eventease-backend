@@ -10,5 +10,13 @@ class UserResponse(BaseModel):
     name:str
     email:str
     role:str
+    model_config=ConfigDict(from_attributes=True)
+
+class UserLogin(BaseModel):
+    email:str
+    password:str
+
+class Token(BaseModel):
+    access_token:str
+    token_type:str
     
-model_config=ConfigDict(from_attributes=True)
