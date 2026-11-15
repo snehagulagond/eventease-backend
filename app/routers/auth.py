@@ -9,7 +9,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 
 
 
-
+# endpoint for user registration and login
 router=APIRouter(
     prefix="/auth",
     tags=["authentication"]
