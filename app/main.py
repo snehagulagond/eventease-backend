@@ -3,11 +3,13 @@ from .database import Base,engine,SessionLocal
 from .import models
 from .routers.auth import router as auth_router
 from .routers.events import router as events_router
+from .routers.registrations import router as registrations_router
 
 
 app=FastAPI(title="EventEase API")
 app.include_router(auth_router)
 app.include_router(events_router)
+app.include_router(registrations_router)
 Base.metadata.create_all(bind=engine)
 @app.get("/")
 def read_root():

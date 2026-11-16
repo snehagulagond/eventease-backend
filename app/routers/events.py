@@ -48,14 +48,14 @@ def update_event(event_id:int,event:EventCreate,db:Session=Depends(get_db),curre
     if existing_event.organizer_id!=current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,detail="You are not the organizer of this event")
 
-        existing_event.title=event.title
-        existing_event.description=event.description
-        existing_event.date=event.date
-        existing_event.Location=event.location
-        existing_event.capacity=event.capacity
-        db.commit()
-        db.refresh(existing_event)
-        return existing_event
+    existing_event.title=event.title
+    existing_event.description=event.description
+    existing_event.date=event.date
+    existing_event.location=event.location
+    existing_event.capacity=event.capacity
+    db.commit()
+    db.refresh(existing_event)
+    return existing_event
             
 @router.delete("/{event_id}",status_code=status.HTTP_204_NO_CONTENT)
 def delete_event(event_id:int,db:Session=Depends(get_db),current_user:User=Depends(get_current_user)):
