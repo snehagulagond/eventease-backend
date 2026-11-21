@@ -1,4 +1,4 @@
-from fastapi import APIRouter,Depends,HTTPException,status
+from fastapi import APIRouter,Depends,HTTPException,status,Query
 from sqlalchemy.orm import Session
 from ..database import get_db
 from ..schemas import EventCreate,EventResponse
@@ -29,8 +29,16 @@ def create_event(event:EventCreate,db:Session=Depends(get_db),current_user:User=
     return new_event
 
 @router.get("/",response_model=List[EventResponse],status_code=status.HTTP_200_OK)
-def get_all_events(db:Session=Depends(get_db)):
-    events=db.query(Event).all()
+def get_all_events(search:str=None,location:str=None,skip:int=Query(0,ge=0),limit:int=Query(10,ge=1,le=100), db:Session=Depends(get_db)):
+    query=db.query(Event)
+    if search:
+        query=query.filter(Event.title.ilike(f"%{search}%"))
+    if location:
+        query=query.filter(Event.location.ilike(f"%{location}%"))
+
+    events=query.offset(skip).limit(limit).all()
+    
+   
     return events
 
 @router.get("/{event_id}",response_model=EventResponse,status_code=status.HTTP_200_OK)
@@ -62,8 +70,8 @@ def delete_event(event_id:int,db:Session=Depends(get_db),current_user:User=Depen
     existing_event=db.query(Event).filter(Event.id==event_id).first()
     if not existing_event:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Event not found")
-    if existing_event.organizer_id!=current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,detail="You are not the organizer of this event")
+    if current_user.role!="admin" and existing_event.organizer_id!=current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,detail="You are not allowed to delete this event")
     db.delete(existing_event)
     db.commit()
 

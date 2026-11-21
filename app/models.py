@@ -1,5 +1,5 @@
 from .database import Base
-from sqlalchemy import Column,Integer,String,Boolean,ForeignKey,DateTime
+from sqlalchemy import Column,Integer,String,Boolean,ForeignKey,DateTime,UniqueConstraint
 from sqlalchemy.sql.expression import text
 from sqlalchemy.sql.sqltypes import TIMESTAMP
 from enum import Enum
@@ -32,11 +32,14 @@ class Event(Base):
     organizer_id=Column(Integer,ForeignKey("users.id",ondelete="CASCADE"),nullable=False)
 
 class Registration(Base):
-    __tablename__="registrations"
-    id=Column(Integer,primary_key=True,nullable=False)
-    user_id=Column(Integer,ForeignKey("users.id",ondelete="CASCADE"),nullable=False)
-    event_id=Column(Integer,ForeignKey("events.id",ondelete="CASCADE"),nullable=False)
-    status=Column(String,nullable=False,server_default='registered')
+    __tablename__="registrations" 
+    __tablename__args__=(
+        UniqueConstraint("userid","eventid",name="unique_user_event") #user_id, event_id: The two columns whose combination must be unique.name: The identifier given to this database constraint.__table_args__: Used to define additional table-level rules.
+    )
+    id = Column(Integer, primary_key=True, nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    event_id = Column(Integer, ForeignKey("events.id", ondelete="CASCADE"), nullable=False)
+    status = Column(String, nullable=False, server_default="registered")
 
 class Category(Base):
     __tablename__="categories"

@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from .auth import get_current_user
 from ..models import User,Event,Registration
+from sqlalchemy.exc import IntegrityError
 
 router=APIRouter(
     prefix="/registrations",
@@ -24,7 +25,19 @@ def register_for_event(event_id:int,db:Session=Depends(get_db),current_user:User
         user_id=current_user.id
     )
     db.add(new_registration)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as e:
+        db.rollback()
+
+        constraint_name=getattr(getattr(e.orig, "diag", None), "constraint_name", None)
+        if constraint_name == "unique_user_event":
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="You have already register for this event"
+            )
+        raise
+    
     db.refresh(new_registration)
     return {"message":"Successfully registered for the event"}
 
