@@ -1,4 +1,4 @@
-from pydantic import BaseModel,ConfigDict
+from pydantic import BaseModel,ConfigDict,Field
 from datetime import datetime
 
 class UserCreate(BaseModel):
@@ -27,7 +27,7 @@ class EventCreate(BaseModel):
     description:str
     date:datetime
     location:str
-    capacity:int
+    capacity:int= Field(gt=0)
     
 class EventResponse(BaseModel):
     id:int
@@ -38,3 +38,12 @@ class EventResponse(BaseModel):
     location:str
     capacity:int
     model_config=ConfigDict(from_attributes=True) #so that pydantic can read from ORM models(SQLAlchemy model objects) and convert them to Pydantic models. This is useful when you want to return data from your database as a response in your API endpoints.
+
+class CategoryCreate(BaseModel):
+    name:str
+
+class CategoryResponse(BaseModel):
+    id:int
+    name:str
+
+

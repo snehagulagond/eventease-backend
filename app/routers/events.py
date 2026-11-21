@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..schemas import EventCreate,EventResponse
 from ..models import Event,User
-from .auth import get_current_user
+from .auth import get_current_user,require_role
 from typing import List
 
 router=APIRouter(
@@ -12,7 +12,7 @@ router=APIRouter(
 
 )
 @router.post("/",response_model=EventResponse,status_code=status.HTTP_201_CREATED)
-def create_event(event:EventCreate,db:Session=Depends(get_db),current_user:User=Depends(get_current_user)):
+def create_event(event:EventCreate,db:Session=Depends(get_db),current_user:User=Depends(require_role("admin","organizer"))):
     #Create a new event instance
     new_event=Event(
         organizer_id=current_user.id,
@@ -45,7 +45,7 @@ def update_event(event_id:int,event:EventCreate,db:Session=Depends(get_db),curre
     existing_event=db.query(Event).filter(Event.id==event_id).first()
     if not existing_event:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Event not found")
-    if existing_event.organizer_id!=current_user.id:
+    if current_user.role!="admin" and existing_event.organizer_id!=current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,detail="You are not the organizer of this event")
 
     existing_event.title=event.title

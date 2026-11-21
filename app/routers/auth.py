@@ -100,3 +100,14 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
 @router.get("/me", response_model=UserResponse, status_code=status.HTTP_200_OK)
 def read_current_user(current_user: User = Depends(get_current_user)):
     return current_user
+
+
+def require_role(*allowed_roles):
+    def role_checker(current_user:User=Depends(get_current_user)):
+        if current_user.role not in allowed_roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=" your role is not allowed to perfom this action"
+            )
+        return current_user
+    return role_checker
