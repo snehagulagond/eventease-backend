@@ -2,7 +2,7 @@ from fastapi import APIRouter,Depends,HTTPException,status,Query
 from sqlalchemy.orm import Session
 from ..database import get_db
 from ..schemas import EventCreate,EventResponse
-from ..models import Event,User
+from ..models import Event,User,Category
 from .auth import get_current_user,require_role
 from typing import List
 
@@ -13,6 +13,9 @@ router=APIRouter(
 )
 @router.post("/",response_model=EventResponse,status_code=status.HTTP_201_CREATED)
 def create_event(event:EventCreate,db:Session=Depends(get_db),current_user:User=Depends(require_role("admin","organizer"))):
+    existing_category=db.query(Category).filter(Category.id==event.category_id).first()
+    if not existing_category:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Category not found")
     #Create a new event instance
     new_event=Event(
         organizer_id=current_user.id,
@@ -20,7 +23,8 @@ def create_event(event:EventCreate,db:Session=Depends(get_db),current_user:User=
         description=event.description,
         date=event.date,
         location=event.location,
-        capacity=event.capacity
+        capacity=event.capacity,
+        category_id=event.category_id
 
     )
     db.add(new_event)

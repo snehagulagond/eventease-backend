@@ -30,6 +30,7 @@ class Event(Base):
     location=Column(String,nullable=False)
     capacity=Column(Integer,nullable=False)
     organizer_id=Column(Integer,ForeignKey("users.id",ondelete="CASCADE"),nullable=False)
+    category_id=Column(Integer,ForeignKey("categories.id",ondelete="RESTRICT"),nullable=False)
 
 class Registration(Base):
     __tablename__="registrations" 
