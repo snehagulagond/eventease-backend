@@ -33,8 +33,8 @@ class Event(Base):
 
 class Registration(Base):
     __tablename__="registrations" 
-    __tablename__args__=(
-        UniqueConstraint("userid","eventid",name="unique_user_event") #user_id, event_id: The two columns whose combination must be unique.name: The identifier given to this database constraint.__table_args__: Used to define additional table-level rules.
+    __table_args__=(
+        UniqueConstraint("user_id","event_id",name="unique_user_event"), #user_id, event_id: The two columns whose combination must be unique.name: The identifier given to this database constraint.__table_args__: Used to define additional table-level rules.
     )
     id = Column(Integer, primary_key=True, nullable=False)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
@@ -45,4 +45,4 @@ class Category(Base):
     __tablename__="categories"
     id=Column(Integer,primary_key=True,nullable=False)
     name=Column(String,nullable=False,unique=True)
-    
+    description=Column(String,nullable=True)

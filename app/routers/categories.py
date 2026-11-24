@@ -2,7 +2,7 @@ from fastapi import APIRouter,Depends,HTTPException,status
 from sqlalchemy.orm import Session
 from ..database import get_db
 from ..schemas import CategoryCreate,CategoryResponse
-from ..models import Category
+from ..models import Category,User
 from .auth import require_role
 
 router=APIRouter(
@@ -16,7 +16,8 @@ def create_category(category:CategoryCreate,current_user:User=Depends(require_ro
     if  existing_category:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT,detail="Category already exists")
     new_category=Category(
-        name=category.name
+        name=category.name,
+        description=category.description
     )
     db.add(new_category)
     db.commit()

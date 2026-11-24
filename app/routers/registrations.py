@@ -14,12 +14,18 @@ def register_for_event(event_id:int,db:Session=Depends(get_db),current_user:User
     event=db.query(Event).filter(Event.id==event_id).first()
     if not event:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Event not found")
+
+    if current_user.role=="organizer" and event.organizer_id==current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,detail="Organizer cannot register for thier own organized event")
     registration=db.query(Registration).filter(Registration.event_id==event_id,Registration.user_id==current_user.id).first()
+
     if registration:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT,detail="You have already registered for this event")
     event_capacity=db.query(Registration).filter(Registration.event_id==event_id).count()
     if event_capacity>=event.capacity:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT,detail="Event is full")
+
+
     new_registration=Registration(
         event_id=event_id,
         user_id=current_user.id

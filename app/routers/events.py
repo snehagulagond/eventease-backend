@@ -43,7 +43,7 @@ def get_all_events(search:str=None,location:str=None,skip:int=Query(0,ge=0),limi
 
 @router.get("/{event_id}",response_model=EventResponse,status_code=status.HTTP_200_OK)
 def get_event(event_id:int,db:Session=Depends(get_db)):
-    event=db.query(Event).filter(Event.id==event_id).first()
+    event=db.query(Event).filter(Event.id==event_id).with_for_update().first()
     if not event:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Event not found")
     return event
