@@ -25,10 +25,12 @@ def create_category(category:CategoryCreate,current_user:User=Depends(require_ro
     return new_category
 
 @router.get("/", response_model=list[CategoryResponse])
-def get_categories(db: Session = Depends(get_db)):
+def get_categories(search:str=None,db: Session = Depends(get_db)):
 
-    categories = db.query(Category).all()
-
+    query = db.query(Category)
+    if search:
+        query=query.filter(Category.name.ilike(f"%{search}%"))
+    categories=query.all()
     return categories
 
 @router.put("/{category_id}",response_model=CategoryResponse,status_code=status.HTTP_200_OK)

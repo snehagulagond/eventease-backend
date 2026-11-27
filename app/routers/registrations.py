@@ -4,48 +4,71 @@ from ..database import get_db
 from .auth import get_current_user
 from ..models import User,Event,Registration
 from sqlalchemy.exc import IntegrityError
+from datetime import timezone,datetime
 
 router=APIRouter(
     prefix="/registrations",
     tags=["registrations"]
 )
-@router.post("/{event_id}",status_code=status.HTTP_201_CREATED)
-def register_for_event(event_id:int,db:Session=Depends(get_db),current_user:User=Depends(get_current_user)):
-    event=db.query(Event).filter(Event.id==event_id).first()
+
+@router.post("/{event_id}", status_code=status.HTTP_201_CREATED)
+def register_for_event(event_id: int,db: Session = Depends(get_db),current_user: User = Depends(get_current_user)):
+    event = db.query(Event).filter(Event.id == event_id).with_for_update().first()
+
     if not event:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Event not found")
 
-    if current_user.role=="organizer" and event.organizer_id==current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,detail="Organizer cannot register for thier own organized event")
-    registration=db.query(Registration).filter(Registration.event_id==event_id,Registration.user_id==current_user.id).first()
+    if event.date < datetime.now():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail="Cannot register for a past event")
+
+    if (current_user.role == "organizer"and event.organizer_id == current_user.id):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,detail="Organizers cannot register for their own events")
+
+
+    registration = db.query(Registration).filter(Registration.event_id == event_id,Registration.user_id == current_user.id).first()
 
     if registration:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT,detail="You have already registered for this event")
-    event_capacity=db.query(Registration).filter(Registration.event_id==event_id).count()
-    if event_capacity>=event.capacity:
+    if event.status=="cancelled":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT,detail="Cannot register for a cancelled event")
+
+    event_capacity = db.query(Registration).filter(
+        Registration.event_id == event_id
+    ).count()
+
+    if event_capacity >= event.capacity:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT,detail="Event is full")
 
-
-    new_registration=Registration(
+    new_registration = Registration(
         event_id=event_id,
         user_id=current_user.id
     )
+
     db.add(new_registration)
+
     try:
         db.commit()
     except IntegrityError as e:
         db.rollback()
 
-        constraint_name=getattr(getattr(e.orig, "diag", None), "constraint_name", None)
+        constraint_name = getattr(
+            getattr(e.orig, "diag", None),
+            "constraint_name",
+            None
+        )
+
         if constraint_name == "unique_user_event":
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="You have already register for this event"
+                detail="You have already registered for this event"
             )
+
         raise
-    
+
     db.refresh(new_registration)
-    return {"message":"Successfully registered for the event"}
+
+    return {"message": "Successfully registered for the event"}
+
 
 @router.get("/my",status_code=status.HTTP_200_OK)
 def get_user_registrations(db:Session=Depends(get_db),current_user:User=Depends(get_current_user)):

@@ -2,9 +2,11 @@ from fastapi import APIRouter,Depends,HTTPException,status,Query
 from sqlalchemy.orm import Session
 from ..database import get_db
 from ..schemas import EventCreate,EventResponse
-from ..models import Event,User,Category
+from ..models import Event,User,Category,Registration
 from .auth import get_current_user,require_role
 from typing import List
+from datetime import timezone,datetime
+
 
 router=APIRouter(
     prefix="/events",
@@ -33,12 +35,17 @@ def create_event(event:EventCreate,db:Session=Depends(get_db),current_user:User=
     return new_event
 
 @router.get("/",response_model=List[EventResponse],status_code=status.HTTP_200_OK)
-def get_all_events(search:str=None,location:str=None,skip:int=Query(0,ge=0),limit:int=Query(10,ge=1,le=100), db:Session=Depends(get_db)):
+def get_all_events(search:str=None,location:str=None,category_id:int=None,status:str=None, skip:int=Query(0,ge=0),limit:int=Query(10,ge=1,le=100), db:Session=Depends(get_db)):
     query=db.query(Event)
     if search:
         query=query.filter(Event.title.ilike(f"%{search}%"))
     if location:
         query=query.filter(Event.location.ilike(f"%{location}%"))
+
+    if category_id is not None:
+        query=query.filter(Event.category_id==category_id)
+    if status:
+        query=query.filter(Event.status==status.lower())
 
     events=query.offset(skip).limit(limit).all()
     
@@ -79,3 +86,45 @@ def delete_event(event_id:int,db:Session=Depends(get_db),current_user:User=Depen
     db.delete(existing_event)
     db.commit()
 
+@router.patch("/{event_id}/cancel",status_code=status.HTTP_204_NO_CONTENT)
+def cancle_event(event_id:int,db:Session=Depends(get_db),current_user:User=Depends(get_current_user)):
+    existing_event=db.query(Event).filter(Event.id==event_id).first()
+    if not existing_event:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Event not found")
+    if current_user.role!="admin" and existing_event.organizer_id!=current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,detail="You are not allowed to cancel this event")
+
+    if existing_event.status=="cancelled":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT,detail="Event already cancelled")
+    existing_event.status="cancelled"
+    db.commit()
+        
+@router.patch("/{event_id}/complete",status_code=status.HTTP_200_OK)
+def completed_event(event_id:int,db:Session=Depends(get_db),current_user:User=Depends(get_current_user)):
+    existing_event=db.query(Event).filter(Event.id==event_id).first()
+    if not existing_event:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Event not found")
+    if current_user.role!="admin" and existing_event.organizer_id!=current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,detail="You are not allowed to make  this event completed")
+    if existing_event.status=="cancelled":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT,detail="cannot complete a cancelled event")
+    if existing_event.date>datetime.now():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail="Cannot complete an event before its scheduled date ")
+
+    if existing_event.status=="completed":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT,detail="Event already completed")
+    existing_event.status="completed"
+    db.commit()
+
+@router.get("/{event_id}/registrations",status_code=status.HTTP_200_OK)
+def event_registrations(event_id:int,db:Session=Depends(get_db),current_user:User=Depends(get_current_user)):
+    existing_event=db.query(Event).filter(Event.id==event_id).first()
+    if not existing_event:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Event not found")
+
+    if current_user.role!="admin" and existing_event.organizer_id!=current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,detail="You are not allowed to see the registrations")
+
+    registrations = db.query(Registration).filter(Registration.event_id == event_id).all()
+
+    return registrations
